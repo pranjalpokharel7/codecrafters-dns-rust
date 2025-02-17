@@ -1,3 +1,7 @@
+mod header;
+
+use header::DNSHeader;
+
 #[allow(unused_imports)]
 use std::net::UdpSocket;
 
@@ -11,9 +15,19 @@ fn main() {
     
     loop {
         match udp_socket.recv_from(&mut buf) {
-            Ok((size, source)) => {
-                println!("Received {} bytes from {}", size, source);
-                let response = [];
+            Ok((_size, source)) => {
+                // println!("Received {} bytes from {}", size, source);
+
+                let header = DNSHeader::from_bytes(&buf);
+                let mut resp_header = header.clone();
+                resp_header.clear_flags();
+                resp_header.set_qr(true);
+
+                // answer size
+                resp_header.set_ancount(0);
+                resp_header.set_arcount(0);
+
+                let response = resp_header.to_bytes_vec();
                 udp_socket
                     .send_to(&response, source)
                     .expect("Failed to send response");
