@@ -1,45 +1,39 @@
-// first 48 bits -> 6 bytes comprise of DNS Header
-// can use copy trait because all fields implement the copy trait
-#[derive(Debug, Clone, Copy)]
-pub struct DNSHeader {
-    pid: u16,
-    flags: u16, // will be broken down later on
-    qdcount: u16,
-    ancount: u16,
-    nscount: u16,
-    arcount: u16,
-}
+use bincode::Options;
+use serde::{Deserialize, Serialize};
 
-macro_rules! u16_to_byte_buffer {
-    ($u16:expr, $buf:expr) => {
-        for byte in $u16.to_be_bytes() {
-            $buf.push(byte);
-        }
-    };
+use crate::helpers::with_bincode;
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+pub struct DNSHeader {
+    pub pid: u16,
+    pub flags: u16,
+    pub qdcount: u16,
+    pub ancount: u16,
+    pub nscount: u16,
+    pub arcount: u16,
 }
 
 impl DNSHeader {
-    pub fn from_bytes(header: &[u8]) -> Self {
-        debug_assert!(header.len() >= 12);
+    pub fn new() -> Self {
         Self {
-            pid: u16::from_be_bytes([header[0], header[1]]),
-            flags: u16::from_be_bytes([header[2], header[3]]),
-            qdcount: u16::from_be_bytes([header[4], header[5]]),
-            ancount: u16::from_be_bytes([header[6], header[7]]),
-            nscount: u16::from_be_bytes([header[8], header[9]]),
-            arcount: u16::from_be_bytes([header[10], header[11]]),
+            pid: 0,
+            flags: 0,
+            qdcount: 0,
+            ancount: 0,
+            nscount: 0,
+            arcount: 0,
         }
     }
 
-    pub fn to_bytes_vec(&self) -> Vec<u8> {
-        let mut buf = Vec::new();
-        u16_to_byte_buffer!(self.pid, buf);
-        u16_to_byte_buffer!(self.flags, buf);
-        u16_to_byte_buffer!(self.qdcount, buf);
-        u16_to_byte_buffer!(self.ancount, buf);
-        u16_to_byte_buffer!(self.nscount, buf);
-        u16_to_byte_buffer!(self.arcount, buf);
-        buf
+    pub fn from_bytes(bytes: &[u8]) -> Self {
+        // header is 12 bytes
+        with_bincode().deserialize(&bytes[..12]).unwrap()
+    }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        // TODO: is there a global option for this???
+        // global serializer/deserializer? pass ref everywhere?
+        with_bincode().serialize(&self).unwrap()
     }
 
     pub fn clear_flags(&mut self) {
@@ -77,20 +71,20 @@ impl DNSHeader {
     pub fn set_ra(&mut self, set: bool) {
         self.flags = (self.flags & 0xff7f) | ((set as u16) << 7);
     }
+}
 
-    pub fn set_nscount(&mut self, count: u16) {
-        self.nscount = count;
-    }
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    pub fn set_qdcount(&mut self, count: u16) {
-        self.qdcount = count;
-    }
-
-    pub fn set_ancount(&mut self, count: u16) {
-        self.ancount = count;
-    }
-
-    pub fn set_arcount(&mut self, count: u16) {
-        self.arcount = count;
+    #[test]
+    fn test_set_qr() {
+        let mut header = DNSHeader::new();
+        header.set_qr(true);
+        assert_eq!(
+            header.to_bytes(),
+            vec![0, 0, 128, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        );
+        assert_eq!(header.flags, 0x8000);
     }
 }

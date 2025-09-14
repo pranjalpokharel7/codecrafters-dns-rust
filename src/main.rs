@@ -1,35 +1,43 @@
 mod header;
+mod question;
+mod packet;
+mod types;
+mod helpers;
 
 use header::DNSHeader;
+use question::DNSQuestion;
+use packet::DNSPacket;
 
 #[allow(unused_imports)]
 use std::net::UdpSocket;
 
 fn main() {
-    // You can use print statements as follows for debugging, they'll be visible when running tests.
-    println!("Logs from your program will appear here!");
-
-    // Uncomment this block to pass the first stage
     let udp_socket = UdpSocket::bind("127.0.0.1:2053").expect("Failed to bind to address");
     let mut buf = [0; 512];
-    
+
     loop {
         match udp_socket.recv_from(&mut buf) {
             Ok((_size, source)) => {
-                // println!("Received {} bytes from {}", size, source);
+                // client query
+                // TODO: cast this as a DNS packet instead
+                let query_header = DNSHeader::from_bytes(&buf);
 
-                let header = DNSHeader::from_bytes(&buf);
-                let mut resp_header = header.clone();
-                resp_header.clear_flags();
-                resp_header.set_qr(true);
+                // server response
+                let mut response = DNSPacket::new();
+                response.header.pid = query_header.pid;
+                response.header.clear_flags();
+                response.header.set_qr(true);
 
-                // answer size
-                resp_header.set_ancount(0);
-                resp_header.set_arcount(0);
+                response.header.ancount = 0;
+                response.header.arcount = 0;
 
-                let response = resp_header.to_bytes_vec();
+                // set the question section value
+                let question = DNSQuestion::new("\x0ccodecrafters\x02io\x00".as_bytes().to_vec());
+                response.questions.push(question);
+                response.header.qdcount = response.questions.len() as u16;
+
                 udp_socket
-                    .send_to(&response, source)
+                    .send_to(&response.to_bytes(), source)
                     .expect("Failed to send response");
             }
             Err(e) => {
