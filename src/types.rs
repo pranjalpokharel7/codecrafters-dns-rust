@@ -1,8 +1,9 @@
 use serde::{Serialize, Deserialize};
+use num_enum::{TryFromPrimitive, IntoPrimitive};
 
-// record type is a 2-byte int
 #[repr(u16)]
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(IntoPrimitive, TryFromPrimitive)]
 pub enum RecordType {
     A = 1,      // a host address
     NS = 2,     // authoritative name server
@@ -24,6 +25,7 @@ pub enum RecordType {
 
 #[repr(u16)]
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(IntoPrimitive, TryFromPrimitive)]
 pub enum ClassType {
     IN = 1, // the internet
     CS = 2, // CSNET class (Obsolete)

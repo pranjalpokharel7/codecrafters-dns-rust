@@ -1,14 +1,14 @@
 use bincode::Options;
 use serde::{Deserialize, Serialize};
 
-use crate::helpers::with_bincode;
+use crate::helpers::big_endian;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 pub struct DNSHeader {
     pub pid: u16,
     pub flags: u16,
     pub qdcount: u16,
-    pub ancount: u16,
+    pub ancount: u16, 
     pub nscount: u16,
     pub arcount: u16,
 }
@@ -26,14 +26,11 @@ impl DNSHeader {
     }
 
     pub fn from_bytes(bytes: &[u8]) -> Self {
-        // header is 12 bytes
-        with_bincode().deserialize(&bytes[..12]).unwrap()
+        big_endian().deserialize(&bytes[..12]).unwrap()
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
-        // TODO: is there a global option for this???
-        // global serializer/deserializer? pass ref everywhere?
-        with_bincode().serialize(&self).unwrap()
+        big_endian().serialize(&self).unwrap()
     }
 
     pub fn clear_flags(&mut self) {
@@ -46,28 +43,34 @@ impl DNSHeader {
     }
 
     // opcode is the lower half of u8 -> 4 bits
+    #[allow(unused)]
     pub fn set_opcode(&mut self, opcode: u16) {
         let op_bits = opcode & 0xf;
         self.flags = (self.flags & 0x87ff) | (op_bits << 11);
     }
 
+    #[allow(unused)]
     pub fn set_rcode(&mut self, rcode: u16) {
         let op_bits = rcode & 0xf;
         self.flags = (self.flags & 0x87ff) | op_bits;
     }
 
+    #[allow(unused)]
     pub fn set_aa(&mut self, set: bool) {
         self.flags = (self.flags & 0xfbff) | ((set as u16) << 10);
     }
 
+    #[allow(unused)]
     pub fn set_tc(&mut self, set: bool) {
         self.flags = (self.flags & 0xfdff) | ((set as u16) << 9);
     }
 
+    #[allow(unused)]
     pub fn set_rd(&mut self, set: bool) {
         self.flags = (self.flags & 0xfeff) | ((set as u16) << 8);
     }
 
+    #[allow(unused)]
     pub fn set_ra(&mut self, set: bool) {
         self.flags = (self.flags & 0xff7f) | ((set as u16) << 7);
     }
