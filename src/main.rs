@@ -13,29 +13,25 @@ fn main() {
     let udp_socket = UdpSocket::bind("127.0.0.1:2053").expect("Failed to bind to address");
     let mut buf = [0; 512];
 
+    // initialize store
+    let store = DNSStore::init();
+
     loop {
         match udp_socket.recv_from(&mut buf) {
             Ok((_size, source)) => {
-                // client query
-                let client_query = DNSMessage::from_request_buffer(&buf);
+                // client request
+                let request = DNSMessage::from_request_buffer(&buf);
 
                 // server response
                 let mut response = DNSMessage::new();
-                response.header.pid = client_query.header.pid;
-                response.header.clear_flags();
-                response.header.set_qr(true);
 
-                // initialize from file
-                let mut store = DNSStore::init();
-                store.insert(
-                    "\x0ccodecrafters\x02io\x00".as_bytes().to_vec(),
-                    vec![192, 168, 1, 10]
-                );
+                // set response flags
+                response.header.from_request_header(&request.header);
 
-                // set the question section value
-                for client_question in &client_query.questions {
-                    let domain_name = &client_question.name;
-                    response.questions.push(client_question.clone());
+                // set the question/answers section value
+                for question in &request.questions {
+                    let domain_name = &question.name;
+                    response.questions.push(question.clone());
 
                     if let Some(record) = store.lookup(&domain_name) {
                         response.answers.push(DNSAnswer::new(domain_name, record));
