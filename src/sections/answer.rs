@@ -10,7 +10,7 @@ pub struct DNSAnswer {
 }
 
 impl DNSAnswer {
-    pub fn new(name: &[u8], addr4: &[u8]) -> Self {
+    pub fn new(name: Vec<u8>, addr4: Vec<u8>) -> Self {
         Self {
             name: name.to_vec(),
             record_type: RecordType::A,
