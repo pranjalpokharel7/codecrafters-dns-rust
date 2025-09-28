@@ -15,3 +15,9 @@
 |      Additional     | RRs holding additional information
 +---------------------+
 ```
+
+
+## Compression
+
+- Use pointers to refer to repetitive label sequences in the DNS message (across question and answer sections)
+- Un-compressed labels start with two 0 bits, but compressed labels start with two 1 bits

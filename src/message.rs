@@ -17,13 +17,27 @@ impl DNSMessage {
 
     pub fn from_request_buffer(buf: &[u8]) -> Self {
         let header = DNSHeader::from_bytes(buf);
+        let mut questions = vec![];
 
-        // TODO: there can be multiple questions!
-        let question = DNSQuestion::from_bytes(&buf[12..]);
+        let mut pos: usize = 12; // header size
+        let buf_size = buf.len(); // read bytes?
+        while pos < buf_size {
+            // pass position as a parameter, and 
+            match DNSQuestion::from_bytes(&buf, pos) {
+                Ok(question) => {
+                    pos = pos + question.name.len() + 4;
+                    questions.push(question);
+                }
+                Err(err) => {
+                    eprintln!("{:?}", err);
+                    break;
+                }
+            }
+        }
 
         Self {
             header,
-            questions: vec![question],
+            questions,
             answers: vec![],
         }
     }

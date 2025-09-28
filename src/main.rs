@@ -3,6 +3,7 @@ mod helpers;
 mod store;
 mod message;
 mod types;
+mod errors;
 
 use sections::answer::DNSAnswer;
 use store::DNSStore;
@@ -15,13 +16,13 @@ fn main() {
     let mut buf = [0; 512];
 
     // initialize store
-    let store = DNSStore::init();
+    let mut store = DNSStore::init();
 
     loop {
         match udp_socket.recv_from(&mut buf) {
-            Ok((_size, source)) => {
+            Ok((size, source)) => {
                 // client request
-                let request = DNSMessage::from_request_buffer(&buf);
+                let request = DNSMessage::from_request_buffer(&buf[..size]);
 
                 // server response
                 let mut response = DNSMessage::new();
@@ -32,14 +33,18 @@ fn main() {
                 // set the question/answers section value
                 for question in &request.questions {
                     let domain_name = question.name.to_vec();
-                    response.questions.push(question.clone());
-
-                    if let Some(record) = store.lookup(&domain_name) {
-                        response.answers.push(DNSAnswer::new(domain_name, record.to_vec()));
+                    let answer = if let Some(record) = store.lookup(&domain_name) {
+                        DNSAnswer::new(domain_name, record.to_vec())
                     } else {
-                        response.answers.push(DNSAnswer::new(domain_name, random_ip()));
-                    }
+                        // later we'll resolve this as a resolver (by forwarding request to a standard nameserver)
+                        let ip = random_ip();
+                        store.insert(domain_name.clone(), ip.clone());
+                        DNSAnswer::new(domain_name, ip)
+                    };
+                    response.answers.push(answer);
                 }
+
+                response.questions.extend(request.questions);
 
                 // set questions and answers count
                 response.header.qdcount = response.questions.len() as u16;
