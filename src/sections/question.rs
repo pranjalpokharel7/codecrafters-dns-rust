@@ -1,88 +1,52 @@
-use crate::{ errors::DeserializationError, types::{ ClassType, RecordType } };
+use crate::{
+    errors::DeserializationError,
+    sections::parser::{ parse_domain_name, parse_u16_from_be_bytes },
+    types::{ ClassType, RecordType },
+};
 use num_enum::TryFromPrimitive;
 use serde::{ Deserialize, Serialize };
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct DNSQuestion {
-    pub name: Vec<u8>,
+    pub domain_name: Vec<u8>,
     pub record_type: RecordType,
     pub class_type: ClassType,
-}
-
-// ways a label can end
-// 1. with a zero octet
-// 2. with a pointer
-// we'll only decompress it back to the original domain name
-// \0def\c0\10
-// 10 -> 0001 0000 -> 16
-// codecrafters.io
-fn _parse_domain_name(buf: &[u8], start: usize) -> Result<(Vec<u8>, usize), DeserializationError> {
-    let mut pos = start;
-    let mut name = vec![];
-
-    while pos < buf.len() {
-        let length_byte = buf[pos];
-
-        // first condition of exit: encountered zero octet
-        if length_byte == b'\x00' {
-            name.push(b'\x00');
-            pos += 1; // move past null byte
-            break;
-        }
-
-        let is_compressed_pointer = ((length_byte & 0xc0) >> 6) == 0b11;
-        if is_compressed_pointer {
-            let ptr = (u16::from_be_bytes([buf[pos], buf[pos + 1]]) & 0x3fff) as usize;
-            let (label, _) = _parse_domain_name(&buf, ptr)?;
-            name.extend(label);
-            pos += 2; // move past null byte
-            break; // second condition of exit: encountered pointer
-        } else {
-            // length byte is also included in label so we add 1
-            let end = pos + (length_byte as usize) + 1;
-            name.extend(&buf[pos..end]);
-            pos = end;
-        }
-    }
-
-    Ok((name, pos))
 }
 
 impl DNSQuestion {
     #[allow(unused)]
     pub fn new(name: Vec<u8>) -> Self {
         Self {
-            name,
+            domain_name: name,
             record_type: RecordType::A,
             class_type: ClassType::IN,
         }
     }
 
-    pub fn from_bytes(buf: &[u8], start: usize) -> Result<Self, DeserializationError> {
-        let (name, pos) = _parse_domain_name(buf, start)?;
-
-        if pos + 3 >= buf.len() {
-            return Err(DeserializationError::UnexpectedEOF);
-        }
+    pub fn from_bytes(buf: &[u8], start: usize) -> Result<(Self, usize), DeserializationError> {
+        let (domain_name, pos) = parse_domain_name(buf, start)?;
 
         let record_type = RecordType::try_from_primitive(
-            u16::from_be_bytes([buf[pos], buf[pos + 1]])
+            parse_u16_from_be_bytes(&buf[pos..])?
         ).map_err(|_| DeserializationError::MalformedField("record_type"))?;
 
         let class_type = ClassType::try_from_primitive(
-            u16::from_be_bytes([buf[pos + 2], buf[pos + 3]])
+            parse_u16_from_be_bytes(&buf[pos + 2..])?
         ).map_err(|_| DeserializationError::MalformedField("class_type"))?;
 
-        Ok(Self {
-            name,
-            record_type,
-            class_type,
-        })
+        Ok((
+            Self {
+                domain_name,
+                record_type,
+                class_type,
+            },
+            pos + 4 - start,
+        ))
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut bytes = vec![];
-        bytes.extend(&self.name);
+        bytes.extend(&self.domain_name);
         bytes.extend((self.record_type as u16).to_be_bytes());
         bytes.extend((self.class_type as u16).to_be_bytes());
         bytes

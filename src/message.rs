@@ -1,3 +1,5 @@
+use std::vec;
+
 use crate::sections::{ answer::DNSAnswer, header::DNSHeader, question::DNSQuestion };
 
 pub struct DNSMessage {
@@ -15,18 +17,31 @@ impl DNSMessage {
         }
     }
 
-    pub fn from_request_buffer(buf: &[u8]) -> Self {
+    pub fn from_bytes(buf: &[u8]) -> Self {
+        let buf_size = buf.len();
         let header = DNSHeader::from_bytes(buf);
-        let mut questions = vec![];
-
         let mut pos: usize = 12; // header size
-        let buf_size = buf.len(); // read bytes?
-        while pos < buf_size {
-            // pass position as a parameter, and 
+
+        let mut questions = vec![];
+        while questions.len() < (header.qdcount as usize) && pos < buf_size {
             match DNSQuestion::from_bytes(&buf, pos) {
-                Ok(question) => {
-                    pos = pos + question.name.len() + 4;
+                Ok((question, bytes_parsed)) => {
+                    pos += bytes_parsed;
                     questions.push(question);
+                }
+                Err(err) => {
+                    eprintln!("{:?}", err);
+                    break;
+                }
+            }
+        }
+
+        let mut answers = vec![];
+        while answers.len() < (header.ancount as usize) && pos < buf_size {
+            match DNSAnswer::from_bytes(&buf, pos) {
+                Ok((answer, bytes_parsed)) => {
+                    pos += bytes_parsed;
+                    answers.push(answer);
                 }
                 Err(err) => {
                     eprintln!("{:?}", err);
@@ -38,7 +53,7 @@ impl DNSMessage {
         Self {
             header,
             questions,
-            answers: vec![],
+            answers,
         }
     }
 

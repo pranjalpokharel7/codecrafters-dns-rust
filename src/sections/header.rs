@@ -1,5 +1,6 @@
 use bincode::Options;
 use serde::{ Deserialize, Serialize };
+use rand::prelude::*;
 
 use crate::helpers::big_endian;
 
@@ -15,7 +16,13 @@ pub struct DNSHeader {
 
 impl DNSHeader {
     pub fn new() -> Self {
-        Self::default()
+        let mut rng = rand::rng();
+        
+        // assign random pid
+        let mut header = Self::default();
+        header.pid = rng.random::<u16>();
+
+        header
     }
 
     pub fn from_bytes(bytes: &[u8]) -> Self {

@@ -4,12 +4,15 @@ mod store;
 mod message;
 mod types;
 mod errors;
+mod args;
 
 use sections::answer::DNSAnswer;
 use store::DNSStore;
 use message::DNSMessage;
 use std::net::UdpSocket;
 use helpers::random_ip;
+
+use crate::{args::Args, helpers::query_nameserver};
 
 fn main() {
     let udp_socket = UdpSocket::bind("127.0.0.1:2053").expect("Failed to bind to address");
@@ -18,11 +21,14 @@ fn main() {
     // initialize store
     let mut store = DNSStore::init();
 
+    // initialize cli
+    let args = Args::init();
+
     loop {
         match udp_socket.recv_from(&mut buf) {
             Ok((size, source)) => {
                 // client request
-                let request = DNSMessage::from_request_buffer(&buf[..size]);
+                let request = DNSMessage::from_bytes(&buf[..size]);
 
                 // server response
                 let mut response = DNSMessage::new();
@@ -32,16 +38,26 @@ fn main() {
 
                 // set the question/answers section value
                 for question in &request.questions {
-                    let domain_name = question.name.to_vec();
-                    let answer = if let Some(record) = store.lookup(&domain_name) {
-                        DNSAnswer::new(domain_name, record.to_vec())
+                    let domain_name = question.domain_name.to_vec();
+                    if let Some(record) = store.lookup(&domain_name) {
+                        response.answers.push(DNSAnswer::new(domain_name, record.to_vec()));
                     } else {
-                        // later we'll resolve this as a resolver (by forwarding request to a standard nameserver)
-                        let ip = random_ip();
-                        store.insert(domain_name.clone(), ip.clone());
-                        DNSAnswer::new(domain_name, ip)
+                        if let Some(ns) = &args.resolver {
+                            let mut ns_query = DNSMessage::new();
+                            ns_query.questions.push(question.clone());
+                            ns_query.header.qdcount = 1;
+
+                            if let Ok(record) = query_nameserver(&ns_query, ns) {
+                                for answer in record.answers {
+                                    response.answers.push(answer);
+                                }
+                            };
+                        } else {
+                            let ip = random_ip();
+                            store.insert(domain_name.clone(), ip.clone());
+                            response.answers.push(DNSAnswer::new(domain_name, ip));
+                        }
                     };
-                    response.answers.push(answer);
                 }
 
                 response.questions.extend(request.questions);
