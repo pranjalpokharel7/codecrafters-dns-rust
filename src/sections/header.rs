@@ -17,13 +17,15 @@ pub struct DNSHeader {
 impl DNSHeader {
     pub fn new() -> Self {
         let mut rng = rand::rng();
-        
+
         // assign random pid
         let mut header = Self::default();
         header.pid = rng.random::<u16>();
 
         header
     }
+
+    // STREAM: remove bincode package - adds unnecessary build time
 
     pub fn from_bytes(bytes: &[u8]) -> Self {
         big_endian()
@@ -34,7 +36,6 @@ impl DNSHeader {
     pub fn to_bytes(&self) -> Vec<u8> {
         big_endian().serialize(&self).unwrap()
     }
-
 
     /// Set response flags using values from request header.
     pub fn from_request_header(&mut self, request_header: &Self) {

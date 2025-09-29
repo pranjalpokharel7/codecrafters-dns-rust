@@ -1,20 +1,14 @@
 use std::collections::HashMap;
 
-// we need to do a different stream for data structure implementations
+// STREAM: replace with trie data structure and pre-load records from a file
 pub struct DNSStore {
     _store: HashMap<Vec<u8>, Vec<u8>>,
 }
 
 impl DNSStore {
     pub fn init() -> Self {
-        let mut _store = HashMap::new();
-
-        // initialize with some pre-filled DNS entries
-        // TODO: move this to a file
-        _store.insert("\x0ccodecrafters\x02io\x00".as_bytes().to_vec(), vec![192, 168, 1, 10]);
-
         Self {
-            _store,
+            _store: HashMap::new(),
         }
     }
 

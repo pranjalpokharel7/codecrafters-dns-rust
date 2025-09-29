@@ -53,6 +53,8 @@ impl DNSQuestion {
     }
 }
 
+// STREAM: add more unit tests
+
 #[cfg(test)]
 mod tests {
     use super::*;

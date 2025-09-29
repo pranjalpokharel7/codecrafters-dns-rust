@@ -24,12 +24,12 @@ pub fn random_ip() -> Vec<u8> {
     ]
 }
 
-pub fn query_nameserver(query: &DNSMessage, nameserver: &str) -> std::io::Result<DNSMessage> {
+pub fn query_nameserver(query: &DNSMessage, nameserver: &str) -> anyhow::Result<DNSMessage> {
     let socket = UdpSocket::bind("0.0.0.0:0")?;
     socket.send_to(&query.to_bytes(), nameserver)?;
 
     let mut response = vec![0u8; 512];
     socket.recv_from(&mut response)?;
 
-    Ok(DNSMessage::from_bytes(&response))
+    Ok(DNSMessage::from_bytes(&response)?)
 }
