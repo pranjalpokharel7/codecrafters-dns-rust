@@ -21,8 +21,8 @@
                 }
             },
             "args": [
-                "--resolver",
-                "1.1.1.1:53",
+                // "--resolver",
+                // "1.1.1.1:53",
             ],
             "cwd": "${workspaceFolder}"
         },

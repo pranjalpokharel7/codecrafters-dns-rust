@@ -6,7 +6,6 @@ mod types;
 mod errors;
 mod args;
 
-use anyhow::Context;
 use sections::answer::DNSAnswer;
 use store::DNSStore;
 use message::DNSMessage;
@@ -88,8 +87,8 @@ fn handle_dns_query(
     args: &Args,
     client_addr: std::net::SocketAddr
 ) -> anyhow::Result<()> {
-    let request = DNSMessage::from_bytes(buffer).context("Failed to parse DNS request")?;
-    let response = build_dns_response(&request, store, args).context("Failed to build DNS response")?;
-    socket.send_to(&response.to_bytes(), client_addr).context("Failed to send DNS response")?;
+    let request = DNSMessage::from_bytes(buffer)?;
+    let response = build_dns_response(&request, store, args)?;
+    socket.send_to(&response.to_bytes(), client_addr)?;
     Ok(())
 }

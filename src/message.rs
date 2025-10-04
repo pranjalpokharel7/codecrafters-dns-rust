@@ -44,7 +44,7 @@ impl DNSMessage {
             return Err(DeserializationError::UnexpectedEOF);
         }
 
-        let header = DNSHeader::from_bytes(buf);
+        let header = DNSHeader::from_bytes(buf)?;
         let mut pos: usize = 12; // header size
 
         let mut questions = Vec::with_capacity(header.qdcount as usize);

@@ -7,4 +7,10 @@ pub enum DeserializationError {
 
     #[error("encountered unexpected EOF")]
     UnexpectedEOF,
+
+    #[error("invalid compression pointer")]
+    InvalidCompressionPointer,
+
+    #[error("compression too deep: exiting before infinite recursion")]
+    CompressionTooDeep,
 }

@@ -1,8 +1,7 @@
-use bincode::Options;
 use serde::{ Deserialize, Serialize };
 use rand::prelude::*;
 
-use crate::helpers::big_endian;
+use crate::errors::DeserializationError;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, Default)]
 pub struct DNSHeader {
@@ -25,16 +24,32 @@ impl DNSHeader {
         header
     }
 
-    // STREAM: remove bincode package - adds unnecessary build time
+    pub fn from_bytes(buf: &[u8]) -> Result<Self, DeserializationError> {
+        if buf.len() < 12 {
+            return Err(DeserializationError::UnexpectedEOF);
+        }
 
-    pub fn from_bytes(bytes: &[u8]) -> Self {
-        big_endian()
-            .deserialize(&bytes[..12])
-            .unwrap()
+        Ok(Self {
+            pid: u16::from_be_bytes([buf[0], buf[1]]),
+            flags: u16::from_be_bytes([buf[2], buf[3]]),
+            qdcount: u16::from_be_bytes([buf[4], buf[5]]),
+            ancount: u16::from_be_bytes([buf[6], buf[7]]),
+            nscount: u16::from_be_bytes([buf[8], buf[9]]),
+            arcount: u16::from_be_bytes([buf[10], buf[11]]),
+        })
     }
 
-    pub fn to_bytes(&self) -> Vec<u8> {
-        big_endian().serialize(&self).unwrap()
+    pub fn to_bytes(&self) -> [u8; 12] {
+        let mut bytes = [0u8; 12];
+
+        bytes[0..2].copy_from_slice(&self.pid.to_be_bytes());
+        bytes[2..4].copy_from_slice(&self.flags.to_be_bytes());
+        bytes[4..6].copy_from_slice(&self.qdcount.to_be_bytes());
+        bytes[6..8].copy_from_slice(&self.ancount.to_be_bytes());
+        bytes[8..10].copy_from_slice(&self.nscount.to_be_bytes());
+        bytes[10..12].copy_from_slice(&self.arcount.to_be_bytes());
+
+        bytes
     }
 
     /// Set response flags using values from request header.
@@ -93,7 +108,7 @@ mod tests {
     fn test_set_qr() {
         let mut header = DNSHeader::new();
         header.set_qr(true);
-        assert_eq!(header.to_bytes(), vec![0, 0, 128, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+        assert_eq!(header.to_bytes(), [0, 0, 128, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
         assert_eq!(header.flags, 0x8000);
     }
 }
